@@ -18,7 +18,7 @@ class Job(ABC):
 
     def __str__(self) -> str:
         return f"{self._job_id}"
-    
+
     def __repr__(self) -> str:
         return self.__str__()
 

@@ -1,11 +1,14 @@
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 import psycopg2
 import os
 from dotenv import load_dotenv
 
 from interfaces.job import Job
+from utils.http import request_many
+from app.models.match import MatchStats
+from app.database.tables import MatchStatsTable
 
 # Load environment variables
 load_dotenv()
@@ -36,8 +39,10 @@ class TrackerJob(Job):
             port=os.getenv("DB_PORT", "5432"),
         )
         self.cursor = self.conn.cursor()
-        logger.info("Database connection established")
-        
+
+        # Initialize table abstractions
+        self.match_stats_table = MatchStatsTable(self.conn, self.cursor)
+
         # Register cleanup to close connection
         self.register_cleanup(self._close_db_connection)
 
@@ -47,21 +52,64 @@ class TrackerJob(Job):
             self.cursor.close()
         if self.conn:
             self.conn.close()
-        logger.info("Database connection closed")
+
+    async def fetch_player_metrics(self, players: List[tuple]) -> List[Dict[str, Any]]:
+        """Fetch player metrics from Henrik's Valorant API for each player"""
+        requests = []
+        api_key = os.getenv("HENRIK_API_KEY")
+
+        for player in players:
+            username, tag = player
+            region = 'na'
+            # Try v1 endpoint which may not require auth
+            url = f"https://api.henrikdev.xyz/valorant/v4/matches/{region}/pc/{username}/{tag}?mode=competitive&size=1"
+            headers = {
+                "Authorization": api_key,
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json"
+            }
+            requests.append(("GET", url, None, headers))
+
+        results = await request_many(requests)
+
+        return results
 
     async def run_implementation(self) -> Dict[str, Any]:
-        # Retreive list of players through DB
-        self.cursor.execute("SELECT * FROM player.players")
+        # Retrieve list of players from DB
+        self.cursor.execute("SELECT username, tag FROM valorant.players")
         players = self.cursor.fetchall()
-        print(players)
-        # Fetch last match of eachplayer stats from Tracker.gg API
-        # Put API response into Match model
-        # Insert+update Match model into DB
-        # Have discord bot send messages to channel if match is a new record
 
-        return {}
+        # Fetch match stats from API
+        results = await self.fetch_player_metrics(players)
+
+        # Parse into MatchStats models
+        match_stats = []
+        for response, (player_name, player_tag) in zip(results, players):
+            match_stat = MatchStats.from_henrik_api(response, player_name, player_tag)
+            if match_stat:
+                match_stats.append(match_stat)
+
+        # Insert matches and collect notifications for new matches
+        new_matches = []
+        for stats in match_stats:
+            discord_user_id = self.match_stats_table.insert(stats)
+            if discord_user_id:
+                new_matches.append({
+                    "discord_user_id": discord_user_id,
+                    "stats": stats
+                })
+
+        # TODO: Send Discord notifications for new matches
+
+        return {
+            "players_processed": len(players),
+            "matches_parsed": len(match_stats),
+            "new_matches": len(new_matches),
+            "notifications": new_matches
+        }
 
 
 if __name__ == "__main__":
     job = TrackerJob()
     result = asyncio.run(job.execute())
+    logger.info(result)
