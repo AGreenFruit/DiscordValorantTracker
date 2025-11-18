@@ -24,10 +24,11 @@ logger = logging.getLogger(__name__)
 class TrackerJob(Job):
     """Tracker job class that fetches player stats from Tracker.gg API for each player in the database"""
 
-    def __init__(self, job_id: str = "tracker_job"):
+    def __init__(self, job_id: str = "tracker_job", notifier=None):
         super().__init__(job_id)
         self.conn = None
         self.cursor = None
+        self.notifier = notifier
 
     async def setup_resources(self) -> None:
         """Setup database connection"""
@@ -99,13 +100,17 @@ class TrackerJob(Job):
                     "stats": stats
                 })
 
-        # TODO: Send Discord notifications for new matches
+        # Send Discord notifications for new matches
+        notifications_sent = 0
+        if self.notifier and new_matches:
+            notifications_sent = await self.notifier.send_bulk_notifications(new_matches)
+            logger.info(f"Sent {notifications_sent}/{len(new_matches)} Discord notifications")
 
         return {
             "players_processed": len(players),
             "matches_parsed": len(match_stats),
             "new_matches": len(new_matches),
-            "notifications": new_matches
+            "notifications_sent": notifications_sent
         }
 
 

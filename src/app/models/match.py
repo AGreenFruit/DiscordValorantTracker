@@ -2,7 +2,7 @@
 from pydantic import BaseModel, Field, computed_field
 from typing import Optional, Dict, Any
 import logging
-import hashlib
+from utils.hash import generate_match_hash
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +130,7 @@ class MatchStats(BaseModel):
             # Generate unique match_id hash from match_id + player
             # This creates a unique identifier for each player's performance in a specific match
             api_match_id = metadata.get('match_id', '')
-            match_identifier = f"{api_match_id}:{player_name}#{player_tag}"
-            match_id = hashlib.sha256(match_identifier.encode()).hexdigest()[:16]
+            match_id = generate_match_hash(api_match_id, player_name, player_tag)
 
             # Build MatchStats object
             return cls(

@@ -66,6 +66,50 @@ class Table:
         return None
 
 
+class PlayersTable(Table):
+    """Players table with custom methods"""
+
+    def __init__(self, conn, cursor):
+        super().__init__(conn, cursor, "valorant.players")
+
+    def insert(self, model: BaseModel) -> bool:
+        """
+        Insert a player into the database.
+        Returns True if player was inserted, False if already exists.
+        """
+        try:
+            # Get model data as dict, including computed fields
+            data = model.model_dump()
+
+            # Build INSERT query with RETURNING clause to check if row was inserted
+            columns = ', '.join(data.keys())
+            placeholders = ', '.join(['%s'] * len(data))
+            values = tuple(data.values())
+
+            query = f"""
+                INSERT INTO {self.table_name} ({columns}) 
+                VALUES ({placeholders})
+                ON CONFLICT (hash) DO NOTHING
+                RETURNING hash
+            """
+
+            self.cursor.execute(query, values)
+            result = self.cursor.fetchone()
+            self.conn.commit()
+
+            # If result is None, the row already existed (conflict occurred)
+            return result is not None
+
+        except psycopg2.IntegrityError as e:
+            self.conn.rollback()
+            logger.debug(f"Integrity error inserting into {self.table_name}: {e}")
+            return False
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"Error inserting into {self.table_name}: {e}")
+            raise
+
+
 class MatchStatsTable(Table):
     """Match stats table with custom methods"""
 
@@ -81,7 +125,7 @@ class MatchStatsTable(Table):
 
         if success:
             self.cursor.execute(
-                "SELECT discord_id FROM valorant.players WHERE player_name = %s AND player_tag = %s",
+                "SELECT discord_id FROM valorant.players WHERE username = %s AND tag = %s",
                 (model.player_name, model.player_tag)
             )
             result = self.cursor.fetchone()
