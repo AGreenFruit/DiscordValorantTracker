@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
+import discord
 from app.bot.discord_bot import bot
 from app.services.discord_notifier import DiscordNotifier
 from app.jobs.tracker_job import TrackerJob
@@ -44,6 +45,9 @@ async def on_ready():
     """Event handler for when the bot is ready"""
     logger.info(f'{bot.user} has connected to Discord!')
     logger.info(f'Bot is in {len(bot.guilds)} guilds')
+
+    # Set bot status
+    await bot.change_presence(activity=discord.Game(name="!tracker"))
 
     # Start the scheduler
     if not scheduler.running:
