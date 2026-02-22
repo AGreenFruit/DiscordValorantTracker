@@ -158,7 +158,7 @@ class MatchStats(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "player_name": "AGreenFruit",
+                "player_name": "PlayerName",
                 "player_tag": "PEPE",
                 "agent": "Jett",
                 "game_score": "13-11",

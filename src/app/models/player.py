@@ -18,7 +18,7 @@ class Player(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "username": "AGreenFruit",
+                "username": "PlayerName",
                 "tag": "PEPE",
                 "discord_id": 123456789012345678,
                 "hash": "a1b2c3d4e5f6g7h8"

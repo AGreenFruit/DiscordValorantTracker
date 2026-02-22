@@ -34,7 +34,7 @@ class DatabaseConnection:
     def __enter__(self):
         self.conn = psycopg2.connect(
             dbname=os.getenv("DB_NAME", "valorant"),
-            user=os.getenv("DB_USER", "danielchen"),
+            user=os.getenv("DB_USER", "postgres"),
             password=os.getenv("DB_PASSWORD"),
             host=os.getenv("DB_HOST", "localhost"),
             port=os.getenv("DB_PORT", "5432"),
@@ -75,7 +75,7 @@ async def tracker(ctx, action: str = None, player_identifier: str = None):
 
         # Parse the player identifier
         if '#' not in player_identifier:
-            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `AGreenFruit#PEPE`)")
+            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `Player#Tag`)")
             return
 
         try:
@@ -116,7 +116,7 @@ async def tracker(ctx, action: str = None, player_identifier: str = None):
                     )
 
         except ValueError:
-            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `AGreenFruit#PEPE`)")
+            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `Player#Tag`)")
         except Exception as e:
             logger.error(f"Error adding player: {e}")
             await ctx.send("❌ An error occurred while adding the player. Please try again later.")
@@ -155,7 +155,7 @@ async def tracker(ctx, action: str = None, player_identifier: str = None):
             return
 
         if '#' not in player_identifier:
-            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `AGreenFruit#PEPE`)")
+            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `Player#Tag`)")
             return
 
         try:
@@ -184,7 +184,7 @@ async def tracker(ctx, action: str = None, player_identifier: str = None):
                     )
 
         except ValueError:
-            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `AGreenFruit#PEPE`)")
+            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `Player#Tag`)")
         except Exception as e:
             logger.error(f"Error removing player: {e}")
             await ctx.send("❌ An error occurred while removing the player. Please try again later.")

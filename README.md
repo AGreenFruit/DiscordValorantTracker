@@ -115,13 +115,13 @@ The bot will:
 #### Add a Player to Track
 
 ```
-!tracker add AGreenFruit#PEPE
+!tracker add <username>#<tag>
 ```
 
 #### Remove a Player from Tracking
 
 ```
-!tracker remove AGreenFruit#PEPE
+!tracker remove <username>#<tag>
 ```
 
 #### List Your Tracked Players
@@ -159,8 +159,8 @@ When a new match is detected, you'll receive a Discord DM with:
 
 ### 1. Player Registration
 ```
-User: !tracker add AGreenFruit#PEPE
-Bot: Creates Player(username="AGreenFruit", tag="PEPE", discord_id=123, hash="abc123")
+User: !tracker add <username>#<tag>
+Bot: Creates Player(username="<username>", tag="<tag>", discord_id=123, hash="abc123")
 Database: Stores player with unique hash
 ```
 
@@ -267,9 +267,9 @@ After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=agreenfruit
-WorkingDirectory=/home/agreenfruit/projects/discord-bots/DiscordValorantTracker
-ExecStart=/home/agreenfruit/.local/bin/uv run python src/main.py
+User=<your-username>
+WorkingDirectory=<path-to-project>/DiscordValorantTracker
+ExecStart=<path-to-uv>/uv run python src/main.py
 Restart=on-failure
 RestartSec=10
 
