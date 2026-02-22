@@ -107,7 +107,7 @@ uv run python src/main.py
 The bot will:
 1. Connect to Discord
 2. Run the tracker job immediately
-3. Schedule the tracker job to run every 5 minutes
+3. Schedule the tracker job to run every `TRACKER_INTERVAL_MINUTES` (default: 1 minute)
 4. Listen for Discord commands
 
 ### Discord Commands
@@ -118,17 +118,16 @@ The bot will:
 !tracker add AGreenFruit#PEPE
 ```
 
-This will:
-- Parse the username and tag
-- Store the player in the database with your Discord ID
-- Generate a unique hash for the player
-- Enable automatic match tracking
+#### Remove a Player from Tracking
 
-**Response:**
 ```
-✅ Successfully added AGreenFruit#PEPE to tracking!
-Discord User: @YourUsername
-You will receive notifications when new matches are detected.
+!tracker remove AGreenFruit#PEPE
+```
+
+#### List Your Tracked Players
+
+```
+!tracker list
 ```
 
 #### Check Bot Status
@@ -136,8 +135,6 @@ You will receive notifications when new matches are detected.
 ```
 !ping
 ```
-
-Returns the bot's latency.
 
 ### Match Notifications
 
@@ -241,14 +238,10 @@ GET https://api.henrikdev.xyz/valorant/v4/matches/{region}/pc/{username}/{tag}
 
 ### Changing Tracker Interval
 
-Edit `src/main.py`:
+Edit `TRACKER_INTERVAL_MINUTES` at the top of `src/main.py`:
 
 ```python
-scheduler.add_job(
-    run_tracker_job,
-    trigger=IntervalTrigger(minutes=5),  # Change this value
-    ...
-)
+TRACKER_INTERVAL_MINUTES = 1  # Change this value
 ```
 
 ### Changing Region
@@ -257,6 +250,48 @@ Edit `src/app/jobs/tracker_job.py`:
 
 ```python
 region = 'na'  # Change to: eu, ap, kr, etc.
+```
+
+## Running as a Service
+
+To run the bot in the background on Linux, create a systemd service:
+
+```bash
+sudo nano /etc/systemd/system/valorant-tracker.service
+```
+
+```ini
+[Unit]
+Description=Valorant Tracker Discord Bot
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=agreenfruit
+WorkingDirectory=/home/agreenfruit/projects/discord-bots/DiscordValorantTracker
+ExecStart=/home/agreenfruit/.local/bin/uv run python src/main.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable valorant-tracker
+sudo systemctl start valorant-tracker
+```
+
+Useful commands:
+
+```bash
+sudo systemctl status valorant-tracker   # Check status
+sudo journalctl -u valorant-tracker -f   # View live logs
+sudo systemctl restart valorant-tracker  # Restart
+sudo systemctl stop valorant-tracker     # Stop
 ```
 
 ## License

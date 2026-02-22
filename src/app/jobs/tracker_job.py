@@ -80,7 +80,7 @@ class TrackerJob(Job):
 
     async def run_implementation(self) -> Dict[str, Any]:
         # Retrieve list of players from DB
-        self.cursor.execute("SELECT username, tag FROM players")
+        self.cursor.execute("SELECT DISTINCT username, tag FROM players")
         players = self.cursor.fetchall()
 
         # Fetch match stats from API

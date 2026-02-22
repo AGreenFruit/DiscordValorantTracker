@@ -20,6 +20,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Tracker interval in minutes
+TRACKER_INTERVAL_MINUTES = 1
+
 # Global scheduler
 scheduler = AsyncIOScheduler()
 
@@ -44,16 +47,15 @@ async def on_ready():
 
     # Start the scheduler
     if not scheduler.running:
-        # Schedule tracker job to run every 5 minutes
         scheduler.add_job(
             run_tracker_job,
-            trigger=IntervalTrigger(minutes=5),
+            trigger=IntervalTrigger(minutes=TRACKER_INTERVAL_MINUTES),
             id='tracker_job',
             name='Valorant Match Tracker',
             replace_existing=True
         )
         scheduler.start()
-        logger.info("Scheduler started - tracker job will run every 5 minutes")
+        logger.info(f"Scheduler started - tracker job will run every {TRACKER_INTERVAL_MINUTES} minute(s)")
 
         # Run the job immediately on startup
         await run_tracker_job()
