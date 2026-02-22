@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 
 
 class DatabaseConnection:
@@ -33,7 +33,7 @@ class DatabaseConnection:
 
     def __enter__(self):
         self.conn = psycopg2.connect(
-            dbname=os.getenv("DB_NAME", "valorant_tracker"),
+            dbname=os.getenv("DB_NAME", "valorant"),
             user=os.getenv("DB_USER", "danielchen"),
             password=os.getenv("DB_PASSWORD"),
             host=os.getenv("DB_HOST", "localhost"),
@@ -49,26 +49,22 @@ class DatabaseConnection:
             self.conn.close()
 
 
-@bot.event
-async def on_ready():
-    """Event handler for when the bot is ready"""
-    logger.info(f'{bot.user} has connected to Discord!')
-    logger.info(f'Bot is in {len(bot.guilds)} guilds')
-
-
 @bot.command(name='tracker')
 async def tracker(ctx, action: str = None, player_identifier: str = None):
     """
     Tracker command to manage player tracking.
 
-    Usage: !tracker add <username>#<tag>
-    Example: !tracker add AGreenFruit#PEPE
+    Usage:
+        !tracker add <username>#<tag>
+        !tracker remove <username>#<tag>
     """
     if action is None:
         await ctx.send(
             "**Valorant Tracker Bot**\n"
-            "Usage: `!tracker add <username>#<tag>`\n"
-            "Example: `!tracker add AGreenFruit#PEPE`"
+            "Usage:\n"
+            "`!tracker add <username>#<tag>` - Start tracking a player\n"
+            "`!tracker remove <username>#<tag>` - Stop tracking a player\n"
+            "`!tracker list` - Show all players you're tracking"
         )
         return
 
@@ -125,10 +121,78 @@ async def tracker(ctx, action: str = None, player_identifier: str = None):
             logger.error(f"Error adding player: {e}")
             await ctx.send("❌ An error occurred while adding the player. Please try again later.")
 
+    elif action.lower() == 'list':
+        try:
+            discord_id = ctx.author.id
+
+            with DatabaseConnection() as (conn, cursor):
+                cursor.execute(
+                    "SELECT username, tag FROM players WHERE discord_id = %s ORDER BY created_at",
+                    (discord_id,)
+                )
+                players = cursor.fetchall()
+
+                if players:
+                    player_list = "\n".join(
+                        f"• **{username}#{tag}**" for username, tag in players
+                    )
+                    await ctx.send(
+                        f"**Tracked Players ({len(players)}):**\n{player_list}"
+                    )
+                else:
+                    await ctx.send(
+                        "You're not tracking any players yet.\n"
+                        "Use `!tracker add <username>#<tag>` to start tracking."
+                    )
+
+        except Exception as e:
+            logger.error(f"Error listing players: {e}")
+            await ctx.send("❌ An error occurred while fetching your tracked players.")
+
+    elif action.lower() == 'remove':
+        if player_identifier is None:
+            await ctx.send("❌ Please provide a player name in the format: `username#tag`")
+            return
+
+        if '#' not in player_identifier:
+            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `AGreenFruit#PEPE`)")
+            return
+
+        try:
+            username, tag = player_identifier.split('#', 1)
+            username = username.strip()
+            tag = tag.strip()
+
+            if not username or not tag:
+                await ctx.send("❌ Both username and tag are required.")
+                return
+
+            discord_id = ctx.author.id
+
+            with DatabaseConnection() as (conn, cursor):
+                players_table = PlayersTable(conn, cursor)
+                success = players_table.delete(username=username, tag=tag, discord_id=discord_id)
+
+                if success:
+                    await ctx.send(
+                        f"✅ Successfully removed **{username}#{tag}** from tracking."
+                    )
+                    logger.info(f"Removed player {username}#{tag} for Discord user {discord_id}")
+                else:
+                    await ctx.send(
+                        f"ℹ️ **{username}#{tag}** is not currently being tracked."
+                    )
+
+        except ValueError:
+            await ctx.send("❌ Invalid format. Please use: `username#tag` (e.g., `AGreenFruit#PEPE`)")
+        except Exception as e:
+            logger.error(f"Error removing player: {e}")
+            await ctx.send("❌ An error occurred while removing the player. Please try again later.")
+
     else:
         await ctx.send(
             f"❌ Unknown action: `{action}`\n"
-            f"Available actions: `add`"
+            f"Available actions: `add`, `remove`, `list`"
         )
 
 

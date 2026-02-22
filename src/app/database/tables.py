@@ -1,10 +1,46 @@
 """Database table abstractions for clean ORM-like operations"""
 import psycopg2
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def create_tables(conn, cursor) -> None:
+    """Create tables if they don't exist"""
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS players (
+            username VARCHAR(255) NOT NULL,
+            tag VARCHAR(255) NOT NULL,
+            discord_id BIGINT NOT NULL,
+            hash VARCHAR(16) UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS match_stats (
+            match_id VARCHAR(16) PRIMARY KEY,
+            player_name VARCHAR(255) NOT NULL,
+            player_tag VARCHAR(255) NOT NULL,
+            agent VARCHAR(100),
+            game_score VARCHAR(20),
+            kills INT,
+            deaths INT,
+            assists INT,
+            kd_ratio FLOAT,
+            damage_delta INT,
+            headshot_percentage FLOAT,
+            adr FLOAT,
+            acs FLOAT,
+            team_placement INT,
+            map_name VARCHAR(100),
+            match_result VARCHAR(20),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    logger.info("Database tables verified/created")
 
 
 class Table:
@@ -70,7 +106,7 @@ class PlayersTable(Table):
     """Players table with custom methods"""
 
     def __init__(self, conn, cursor):
-        super().__init__(conn, cursor, "valorant.players")
+        super().__init__(conn, cursor, "players")
 
     def insert(self, model: BaseModel) -> bool:
         """
@@ -109,29 +145,49 @@ class PlayersTable(Table):
             logger.error(f"Error inserting into {self.table_name}: {e}")
             raise
 
+    def delete(self, username: str, tag: str, discord_id: int) -> bool:
+        """
+        Delete a player from tracking.
+        Returns True if a player was deleted, False if not found.
+        """
+        try:
+            self.cursor.execute(
+                f"DELETE FROM {self.table_name} WHERE username = %s AND tag = %s AND discord_id = %s RETURNING hash",
+                (username, tag, discord_id)
+            )
+            result = self.cursor.fetchone()
+            self.conn.commit()
+            return result is not None
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"Error deleting from {self.table_name}: {e}")
+            raise
+
 
 class MatchStatsTable(Table):
     """Match stats table with custom methods"""
 
     def __init__(self, conn, cursor):
-        super().__init__(conn, cursor, "valorant.match_stats")
+        super().__init__(conn, cursor, "match_stats")
 
-    def insert(self, model: BaseModel) -> Optional[int]:
+    def insert(self, model: BaseModel) -> List[int]:
         """
-        Insert a match stat and return discord_id if it's a new match.
+        Insert a match stat and return list of discord_ids tracking this player.
+        Returns empty list if match already existed.
         """
         # Try to insert the match
         success = super().insert(model)
 
         if success:
             self.cursor.execute(
-                "SELECT discord_id FROM valorant.players WHERE username = %s AND tag = %s",
+                "SELECT discord_id FROM players WHERE username = %s AND tag = %s",
                 (model.player_name, model.player_tag)
             )
-            result = self.cursor.fetchone()
+            results = self.cursor.fetchall()
 
-            if result and result[0]:
-                logger.info(f"New match recorded for {model.player_name}#{model.player_tag}")
-                return result[0]
+            discord_ids = [row[0] for row in results if row[0]]
+            if discord_ids:
+                logger.info(f"New match recorded for {model.player_name}#{model.player_tag}, notifying {len(discord_ids)} user(s)")
+            return discord_ids
 
-        return None
+        return []

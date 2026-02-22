@@ -64,7 +64,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # Database Configuration
-DB_NAME=valorant_tracker
+DB_NAME=valorant
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
 DB_HOST=localhost
@@ -77,42 +77,13 @@ DISCORD_BOT_TOKEN=your_discord_bot_token
 
 4. **Set up the database**
 
-Create the required tables:
+Create a PostgreSQL database named `valorant`:
 
 ```sql
--- Create schema
-CREATE SCHEMA IF NOT EXISTS valorant;
-
--- Players table
-CREATE TABLE valorant.players (
-    username VARCHAR(255) NOT NULL,
-    tag VARCHAR(255) NOT NULL,
-    discord_id BIGINT NOT NULL,
-    hash VARCHAR(16) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Match stats table
-CREATE TABLE valorant.match_stats (
-    match_id VARCHAR(16) PRIMARY KEY,
-    player_name VARCHAR(255) NOT NULL,
-    player_tag VARCHAR(255) NOT NULL,
-    agent VARCHAR(100),
-    game_score VARCHAR(20),
-    kills INT,
-    deaths INT,
-    assists INT,
-    kd_ratio FLOAT,
-    damage_delta INT,
-    headshot_percentage FLOAT,
-    adr FLOAT,
-    acs FLOAT,
-    team_placement INT,
-    map_name VARCHAR(100),
-    match_result VARCHAR(20),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE DATABASE valorant;
 ```
+
+The required tables (`players` and `match_stats`) will be created automatically on first run.
 
 5. **Create a Discord bot**
 
@@ -264,7 +235,7 @@ GET https://api.henrikdev.xyz/valorant/v4/matches/{region}/pc/{username}/{tag}
 ### Database connection errors
 - Verify database credentials in `.env`
 - Ensure PostgreSQL is running
-- Check database and schema exist
+- Check database exists
 
 ## Configuration
 

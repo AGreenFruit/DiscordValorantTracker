@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from interfaces.job import Job
 from utils.http import request_many
 from app.models.match import MatchStats
-from app.database.tables import MatchStatsTable
+from app.database.tables import MatchStatsTable, create_tables
 
 # Load environment variables
 load_dotenv()
@@ -33,13 +33,16 @@ class TrackerJob(Job):
     async def setup_resources(self) -> None:
         """Setup database connection"""
         self.conn = psycopg2.connect(
-            dbname=os.getenv("DB_NAME", "valorant_tracker"),
+            dbname=os.getenv("DB_NAME", "valorant"),
             user=os.getenv("DB_USER", "danielchen"),
             password=os.getenv("DB_PASSWORD"),
             host=os.getenv("DB_HOST", "localhost"),
             port=os.getenv("DB_PORT", "5432"),
         )
         self.cursor = self.conn.cursor()
+
+        # Create tables if they don't exist
+        create_tables(self.conn, self.cursor)
 
         # Initialize table abstractions
         self.match_stats_table = MatchStatsTable(self.conn, self.cursor)
@@ -77,7 +80,7 @@ class TrackerJob(Job):
 
     async def run_implementation(self) -> Dict[str, Any]:
         # Retrieve list of players from DB
-        self.cursor.execute("SELECT username, tag FROM valorant.players")
+        self.cursor.execute("SELECT username, tag FROM players")
         players = self.cursor.fetchall()
 
         # Fetch match stats from API
@@ -93,8 +96,8 @@ class TrackerJob(Job):
         # Insert matches and collect notifications for new matches
         new_matches = []
         for stats in match_stats:
-            discord_user_id = self.match_stats_table.insert(stats)
-            if discord_user_id:
+            discord_user_ids = self.match_stats_table.insert(stats)
+            for discord_user_id in discord_user_ids:
                 new_matches.append({
                     "discord_user_id": discord_user_id,
                     "stats": stats
