@@ -101,8 +101,8 @@ class MatchStats(BaseModel):
                 reverse=True)
             team_placement = next((
                 i + 1 for i,
-                p in enumerate(sorted_team) if p.get('name') == player_name and
-                p.get('tag') == player_tag), 5)
+                p in enumerate(sorted_team) if p.get('name', '').lower() == player_name.lower() and
+                p.get('tag', '').lower() == player_tag.lower()), 5)
 
             # Get team's rounds won/lost
             player_team = next((t for t in teams if t.get('team_id') == team_id), {})
